@@ -21,14 +21,13 @@ class Sudoku:
     def sudoku_detect(self):
         gray = cv2.cvtColor(self.full_image, cv2.COLOR_BGR2GRAY)
 
-        gray = cv2.GaussianBlur(gray, (7, 7), 3)
-        gray = cv2.adaptiveThreshold(
-            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 57, 5)
-        gray = cv2.bitwise_not(gray)
+        # Thrashold
+        blurred = cv2.GaussianBlur(gray, (7, 7), 3)
+        thresh = cv2.adaptiveThreshold(
+            blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 57, 5)
+        thresh = cv2.bitwise_not(thresh)
 
-        cnts = cv2.findContours(
-            gray.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        cnts = imutils.grab_contours(cnts)
+        cnts = self.find_contour(thresh)
         cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
 
         puzzleCnt = None
@@ -44,10 +43,39 @@ class Sudoku:
         self.image_gray = four_point_transform(gray, puzzleCnt.reshape(4, 2))
 
     def convert_binary(self):
-        thresh = cv2.fastNlMeansDenoising(self.image_gray)
-        thresh = cv2.adaptiveThreshold(
-            thresh, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-        self.image_binary = thresh
+        ''' Convert gray image to binary image'''
+        image = cv2.fastNlMeansDenoising(self.image_gray)
+        image = cv2.adaptiveThreshold(
+            image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+        self.image_binary = image
+
+    def filter_number(self, cell):
+        _, thresh = cv2.threshold(cell, 0, 255,
+                                  cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+        thresh = clear_border(thresh)
+
+        cnts = self.find_contour(thresh)
+        mask = np.zeros(thresh.shape, np.uint8)
+
+        # remove all
+        if len(cnts) == 0:
+            return self.remove_image(thresh)
+
+        c = max(cnts, key=cv2.contourArea)
+
+        if cv2.contourArea(c) < 20:
+            return self.remove_image(thresh)
+
+        cv2.drawContours(mask, [c], -1, 255, -1)
+        return cv2.bitwise_and(thresh, thresh, mask=mask)
+
+    def find_contour(self, thresh):
+        cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+                                cv2.CHAIN_APPROX_SIMPLE)
+        return imutils.grab_contours(cnts)
+
+    def remove_image(self, thresh):
+        return cv2.bitwise_and(thresh, np.zeros(thresh.shape, np.uint8))
 
     def split_cells(self):
         x_size = self.image_binary.shape[0] // 9
@@ -57,6 +85,7 @@ class Sudoku:
 
         for x in range(0, 9):
             for y in range(0, 9):
-                array_cell[x][y] = self.image_binary[x_size *
-                                                     x:x_size * (x+1), y_size * y:y_size * (y+1)]
+                cell = self.image_binary[x_size *
+                                         x:x_size * (x+1), y_size * y:y_size * (y+1)]
+                array_cell[x][y] = self.filter_number(cell)
         self.cells = array_cell
