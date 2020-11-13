@@ -36,6 +36,13 @@ def sudoku_detect(image_path):
     return (puzzle, warped)
 
 
+def convert_binary(gray_image):
+    ''' Convert gray image to binary image'''
+    image = cv2.fastNlMeansDenoising(gray_image)
+    image = cv2.adaptiveThreshold(image,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,11,2)
+    return image
+
+
 def split_cell(blended_image):
     x_size = blended_image.shape[0] // 9
     y_size = blended_image.shape[1] // 9
