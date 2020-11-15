@@ -8,23 +8,48 @@ import cv2
 
 
 class Sudoku:
-    # Sudoku.image_path = path to image file
-    # Sudoku.image_gray = original gray image
-    # Sudoku.image_gray_tranfromed = bird eye view gray image
-    # Sudoku.image_gussinanblurred = gray image blurred
-    # Sudoku.image_binary = thresholded and denoised image
-    # Sudoku.cells = array of all grid
+
     def __init__(self, path):
         self.image_path = path
         self.sudoku_detect()
-        self.image_binary = self.convert_binary()
+        self.image_binary = self.convert_binary(self.image_gray)
         self.cells = self.split_cells(self.image_binary)
+        self.help = """Sudoku('path/to/file')\n
+    Data\n
+    \t.image_path = path to image file\n
+    \t.image_gray = bird eye view gray image\n
+    \t.image_binary = thresholded and denoised image\n
+    \t.cells = array of all grid\n
+    \t.help = detail of this object\n
+    Function\n
+    \t.load_image() = load original image from self.image_path\n
+    \t\treturn image_object\n
+    \t.sudoku_detect() = transfrom gray image to bird eye view\n
+    \t\treturn None\n
+    \t.convert_binary(image_gray) = convert gray image to binary with GAUSSIAN Threshold\n
+    \t\treturn image_object as converted\n
+    \t.filter_number(cell) = filter out border table and noise only cell\n
+    \t\treturn blank_image_object if null number | image_object_has_only_number\n
+    \t.remove_image(image_binary) = remove anything from binary image\n
+    \t\treturn blank_image_object\n
+    \t.create_contours(image_thresholded) = find all contours in image\n
+    \t\treturn list_of_contours_found\n
+    \t.adap_threshold(image_gray) = adaptive GAUSSIAN threshold to image\n
+    \t\treturn thresholded_image_object\n
+    \t.split_cells(image_thresholded) = split image by divide 9x9\n
+    \t\treturn np_array 9x9\n
+    \t.search_largest_square_contour(list_contours) = find a largest contours in list_contour\n
+    \t\treturn contour\n
+        """
+
+    def load_image(self):
+        return cv2.imread(self.image_path)
 
     def sudoku_detect(self):
         self.image_gray = cv2.cvtColor(self.load_image(), cv2.COLOR_BGR2GRAY)
         thresh = self.adap_threshold(self.image_gray)
         list_contours = self.create_contours(thresh)
-        puzzleCnt = self.search_big_square_contour(list_contours)
+        puzzleCnt = self.search_largest_square_contour(list_contours)
 
         if puzzleCnt is None:
             raise Exception("Sudoku puzzle not found at " +
@@ -33,9 +58,9 @@ class Sudoku:
         self.image_gray = four_point_transform(
             self.image_gray, puzzleCnt.reshape(4, 2))
 
-    def convert_binary(self):
+    def convert_binary(self, image_gray):
         ''' Convert gray image to binary image'''
-        image = cv2.fastNlMeansDenoising(self.image_gray)
+        image = cv2.fastNlMeansDenoising(image_gray)
         image = cv2.adaptiveThreshold(
             image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 57, 5)
         return image
@@ -59,16 +84,13 @@ class Sudoku:
         cv2.drawContours(mask, [c], -1, 255, -1)
         return cv2.bitwise_and(thresh, thresh, mask=mask)
 
-    def load_image(self):
-        return cv2.imread(self.image_path)
+    def remove_image(self, thresh):
+        return cv2.bitwise_and(thresh, np.zeros(thresh.shape, np.uint8))
 
     def create_contours(self, thresh):
         cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
                                 cv2.CHAIN_APPROX_SIMPLE)
         return imutils.grab_contours(cnts)
-
-    def remove_image(self, thresh):
-        return cv2.bitwise_and(thresh, np.zeros(thresh.shape, np.uint8))
 
     def adap_threshold(self, gray):
         thresh = cv2.GaussianBlur(gray, (7, 7), 3)
@@ -91,7 +113,7 @@ class Sudoku:
                 array_cell[x][y] = cell
         return array_cell
 
-    def search_big_square_contour(self, list_contours):
+    def search_largest_square_contour(self, list_contours):
         list_contours = sorted(
             list_contours, key=cv2.contourArea, reverse=True)
         for c in list_contours:
