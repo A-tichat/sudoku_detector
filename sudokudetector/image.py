@@ -1,5 +1,6 @@
 from imutils.perspective import four_point_transform
 from skimage.segmentation import clear_border
+import matplotlib.pyplot as plt
 import numpy as np
 import imutils
 import cv2
@@ -39,7 +40,8 @@ def sudoku_detect(image_path):
 def convert_binary(gray_image):
     ''' Convert gray image to binary image'''
     image = cv2.fastNlMeansDenoising(gray_image)
-    image = cv2.adaptiveThreshold(image,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,11,2)
+    image = cv2.adaptiveThreshold(
+        image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     return image
 
 
@@ -56,3 +58,24 @@ def split_cell(blended_image):
             digit = clear_border(thresh)
             digit = cv2.erode(digit, np.ones((3, 3), np.uint8), iterations=1)
             yield cv2.dilate(digit, np.ones((1, 1), np.uint8), iterations=1)
+
+
+def debug(image, color_map=None):
+    if color_map is None:
+        plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    else:
+        plt.imshow(image, color_map)
+    plt.xticks([]), plt.yticks([])
+    plt.show()
+
+
+def render(image, scale):
+    image_list = image.flatten()
+    fig = plt.figure(figsize=scale)
+    for x in range(scale[0]):
+        for y in range(scale[1]):
+            index = x * scale[1]+y
+            fig.add_subplot(scale[0], scale[1], index + 1),
+            plt.imshow(cv2.cvtColor(image_list[index], cv2.COLOR_BGR2RGB))
+            plt.xticks([]), plt.yticks([])
+    plt.show()
