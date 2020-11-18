@@ -46,17 +46,29 @@ class Sudoku:
         return cv2.imread(self.image_path)
 
     def sudoku_detect(self):
-        self.image_gray = cv2.cvtColor(self.load_image(), cv2.COLOR_BGR2GRAY)
-        thresh = self.adap_threshold(self.image_gray)
+        image_load = self.load_image()
+        image_gray = cv2.cvtColor(image_load, cv2.COLOR_BGR2GRAY)
+        thresh = self.adap_threshold(image_gray)
         list_contours = self.create_contours(thresh)
         puzzleCnt = self.search_largest_square_contour(list_contours)
 
         if puzzleCnt is None:
             raise Exception("Sudoku puzzle not found at " +
                             self.image_path+" path.")
+        else:
+            _, _, w, h = cv2.boundingRect(puzzleCnt)
+            if w < 100 or h < 100:
+                raise Exception("Sudoku puzzle not found at " +
+                                self.image_path+" path.")
         # result
-        self.image_gray = four_point_transform(
-            self.image_gray, puzzleCnt.reshape(4, 2))
+        image_gray = four_point_transform(
+            image_gray, puzzleCnt.reshape(4, 2))
+
+        image_load = four_point_transform(
+            image_load, puzzleCnt.reshape(4, 2))
+
+        self.image_gray = cv2.resize(image_gray, (480, 480))
+        self.origin_tranformed = cv2.resize(image_load, (480, 480))
 
     def convert_binary(self, image_gray):
         ''' Convert gray image to binary image'''
@@ -71,17 +83,26 @@ class Sudoku:
         thresh = clear_border(thresh)
 
         cnts = self.create_contours(thresh)
-        mask = np.zeros(thresh.shape, np.uint8)
-
-        # remove all
+        
         if len(cnts) == 0:
             return self.remove_image(thresh)
 
-        c = max(cnts, key=cv2.contourArea)
-        if cv2.contourArea(c) < 40:
+        contour_digit = None
+        cnts = sorted(
+            cnts, key=cv2.contourArea, reverse=True)
+        for c in cnts:
+            pos_x, pos_y, w, h = cv2.boundingRect(c)
+            pos_x += w//2
+            pos_y += h//2
+            if ((pos_x>20 and pos_x<32) and (pos_y>20 and pos_y<39) and (w*h >150)):
+                contour_digit = c
+                break
+
+        if contour_digit is None:
             return self.remove_image(thresh)
 
-        cv2.drawContours(mask, [c], -1, 255, -1)
+        mask = np.zeros(thresh.shape, np.uint8)
+        cv2.drawContours(mask, [contour_digit], -1, 255, -1)
         return cv2.bitwise_and(thresh, thresh, mask=mask)
 
     def remove_image(self, thresh):
