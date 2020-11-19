@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Conv2D, Dropout, Flatten, MaxPooling2D
+from keras.preprocessing.image import ImageDataGenerator
 
 class Model(object):
     def __init__(self, input_shape):
@@ -9,10 +10,17 @@ class Model(object):
     
     def init_model(self):
         model = Sequential()
-        model.add(Conv2D(28, kernel_size=(3,3), input_shape=self.input_shape))
+        model.add(Conv2D(64, kernel_size=(3,3),padding="same", input_shape=self.input_shape))
         model.add(MaxPooling2D(pool_size=(2, 2)))
+        model.add(Conv2D(32, kernel_size=(3,3),padding="same"))#
+        model.add(MaxPooling2D(pool_size=(2, 2)))#
+        model.add(Conv2D(32, kernel_size=(3,3),padding="same"))#
+        model.add(MaxPooling2D(pool_size=(2, 2)))#
+        model.add(Conv2D(16, kernel_size=(3,3),padding="same"))#
+        model.add(MaxPooling2D(pool_size=(2, 2)))#
         model.add(Flatten()) # Flattening the 2D arrays for fully connected layers
         model.add(Dense(128, activation=tf.nn.relu))
+        model.add(Dense(256, activation=tf.nn.relu))#
         model.add(Dropout(0.2))
         model.add(Dense(10, activation=tf.nn.softmax))
 
@@ -29,7 +37,7 @@ class Model(object):
 
     def train(self, x_train, y_train, epochs):
         x_train = self.normalize_image(x_train)
-        self.model.fit(x=x_train,y=y_train, epochs=epochs)
+        self.model.fit(x=x_train,y=y_train, epochs=epochs,batch_size=200)
 
     def evaluate(self, x_test, y_test):
         x_test = self.normalize_image(x_test)
@@ -44,3 +52,4 @@ class Model(object):
 
     def save_model(self, path):
         self.model.save_weights(path)
+
